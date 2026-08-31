@@ -1,0 +1,36 @@
+{
+  "schema": "gooo/language-delta-forge/immutable-release/v1",
+  "version": "v1",
+  "identity": {
+    "repository": "kimjooyoon/gooo-language-delta-forge-fixture-release",
+    "tag": "v0.1.0",
+    "commit": "1111111111111111111111111111111111111111",
+    "source_digest": "sha256:e06278ea304ae788480babff2a30e4b31acb900ba206406c4ddb705ab8af7769",
+    "graph_digest": "sha256:d9fda89496a7506451c5ed2e56ea9976eade697e96ecff3d93e582515ddbbf84",
+    "digest": "sha256:5dc73b925a87270546e98c686a990a5cd96c01bfdbb26bf06a5f5ba48a496f89"
+  },
+  "graph": {
+    "schema": "gooo/semantic-graph/v1",
+    "version": "v1",
+    "concepts": [
+      {"id": "concept.order", "name": "Order"}
+    ],
+    "predicates": [
+      {"id": "predicate.order_status", "concept_id": "concept.order", "name": "has_status", "fields": [
+        {"id": "field.order_status", "name": "status", "type": "string"}
+      ]},
+      {"id": "predicate.order_total", "concept_id": "concept.order", "name": "has_total", "fields": [
+        {"id": "field.order_total", "name": "amount", "type": "integer"}
+      ]}
+    ],
+    "edges": [
+      {"id": "edge.order_status", "from": "concept.order", "to": "predicate.order_status", "kind": "binds", "predicate_id": "predicate.order_status"},
+      {"id": "edge.order_total", "from": "concept.order", "to": "predicate.order_total", "kind": "binds", "predicate_id": "predicate.order_total"}
+    ],
+    "cells": [
+      {"id": "cell.order.status.presence", "concept_id": "concept.order", "predicate_id": "predicate.order_status", "field_id": "field.order_status", "relation": "requires", "constraint": "nonempty"},
+      {"id": "cell.order.total.presence", "concept_id": "concept.order", "predicate_id": "predicate.order_total", "field_id": "field.order_total", "relation": "requires", "constraint": "nonnegative"}
+    ],
+    "graph_digest": "sha256:d9fda89496a7506451c5ed2e56ea9976eade697e96ecff3d93e582515ddbbf84"
+  }
+}

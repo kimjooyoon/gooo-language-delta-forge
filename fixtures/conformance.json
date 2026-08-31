@@ -1,0 +1,14 @@
+{
+  "schema":"gooo/language-delta-forge/conformance-manifest/v1",
+  "cases":[
+    {"id":"closed-foundation-driver","input_path":"input-closed.json","expected_decision":"CLOSED","proof_choice":"FOUNDATION","indicator_class":"DRIVER"},
+    {"id":"closed-coherence-outcome","input_path":"input-closed.json","expected_decision":"CLOSED","proof_choice":"COHERENCE","indicator_class":"OUTCOME"},
+    {"id":"closed-regression-guardrail","input_path":"input-closed.json","expected_decision":"CLOSED","proof_choice":"REGRESSION","indicator_class":"GUARDRAIL"},
+    {"id":"unknown-foundation-driver","input_path":"input-unknown.json","expected_decision":"UNKNOWN","proof_choice":"FOUNDATION","indicator_class":"DRIVER"},
+    {"id":"unknown-coherence-outcome","input_path":"input-unknown.json","expected_decision":"UNKNOWN","proof_choice":"COHERENCE","indicator_class":"OUTCOME"},
+    {"id":"unknown-regression-guardrail","input_path":"input-unknown.json","expected_decision":"UNKNOWN","proof_choice":"REGRESSION","indicator_class":"GUARDRAIL"},
+    {"id":"refuted-foundation-driver","input_path":"input-refuted.json","expected_decision":"REFUTED","proof_choice":"FOUNDATION","indicator_class":"DRIVER"},
+    {"id":"refuted-coherence-outcome","input_path":"input-refuted.json","expected_decision":"REFUTED","proof_choice":"COHERENCE","indicator_class":"OUTCOME"},
+    {"id":"refuted-regression-guardrail","input_path":"input-refuted.json","expected_decision":"REFUTED","proof_choice":"REGRESSION","indicator_class":"GUARDRAIL"}
+  ]
+}

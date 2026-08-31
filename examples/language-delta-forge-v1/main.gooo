@@ -1,0 +1,51 @@
+package language_delta_forge
+namespace language_delta_forge
+
+entity ImmutableGoooRelease id "gooo://language-delta-forge/entity/immutable-release"
+entity FailureReceipt id "gooo://language-delta-forge/entity/failure-receipt"
+entity UnknownReceipt id "gooo://language-delta-forge/entity/unknown-receipt"
+entity RefutedReceipt id "gooo://language-delta-forge/entity/refuted-receipt"
+entity ExactTarget id "gooo://language-delta-forge/entity/exact-target"
+entity CausalFrontier id "gooo://language-delta-forge/entity/causal-frontier"
+entity SemanticGraphDelta id "gooo://language-delta-forge/entity/semantic-graph-delta"
+entity RollbackDelta id "gooo://language-delta-forge/entity/rollback-delta"
+entity ConformanceManifest id "gooo://language-delta-forge/entity/conformance-manifest"
+entity IndependentConsumerReceipt id "gooo://language-delta-forge/entity/independent-consumer-receipt"
+entity CandidateBundle id "gooo://language-delta-forge/entity/candidate-bundle"
+
+activity ObserveImmutableRelease(ImmutableGoooRelease) -> CandidateBundle
+activity ConsumeFailureReceipt(FailureReceipt) -> CandidateBundle
+activity PreserveUnknownReceipt(UnknownReceipt) -> CandidateBundle
+activity PrioritizeRefutedReceipt(RefutedReceipt) -> CandidateBundle
+activity BindExactTarget(ExactTarget) -> CandidateBundle
+activity BindCausalFrontier(CausalFrontier) -> CandidateBundle
+activity BindSemanticGraphDelta(SemanticGraphDelta) -> CandidateBundle
+activity BindRollbackDelta(RollbackDelta) -> CandidateBundle
+activity BindConformanceManifest(ConformanceManifest) -> CandidateBundle
+activity BindIndependentConsumerReceipt(IndependentConsumerReceipt) -> CandidateBundle
+activity EmitReadOnlyCandidate(CandidateBundle) -> CandidateBundle
+
+gooo language_delta_forge v1
+denominator id=language-delta-forge-v1 cell_count=18
+authority repository_writes=0 local_test_executions=0 protected_core_adoption=0 merge_authority=0
+precedence REFUTED>UNKNOWN>CLOSED
+unknown_fields stage,step,reason,unknown_class,next_operation,blocked_by
+
+cell ordinal=1 id=FOUNDATION-DRIVER-01 proof=FOUNDATION indicator=DRIVER stage=RELEASE step=observe_immutable_release
+cell ordinal=2 id=FOUNDATION-DRIVER-02 proof=FOUNDATION indicator=DRIVER stage=RELEASE step=bind_source_digest
+cell ordinal=3 id=FOUNDATION-OUTCOME-01 proof=FOUNDATION indicator=OUTCOME stage=TARGET step=bind_exact_target
+cell ordinal=4 id=FOUNDATION-OUTCOME-02 proof=FOUNDATION indicator=OUTCOME stage=GRAPH step=bind_baseline_graph
+cell ordinal=5 id=FOUNDATION-GUARDRAIL-01 proof=FOUNDATION indicator=GUARDRAIL stage=AUTHORITY step=preserve_read_only_boundary
+cell ordinal=6 id=FOUNDATION-GUARDRAIL-02 proof=FOUNDATION indicator=GUARDRAIL stage=RECEIPT step=preserve_refutation_precedence
+cell ordinal=7 id=COHERENCE-DRIVER-01 proof=COHERENCE indicator=DRIVER stage=CAUSE step=bind_direct_cause
+cell ordinal=8 id=COHERENCE-DRIVER-02 proof=COHERENCE indicator=DRIVER stage=FRONTIER step=bind_causal_frontier
+cell ordinal=9 id=COHERENCE-OUTCOME-01 proof=COHERENCE indicator=OUTCOME stage=DELTA step=bind_added_cells
+cell ordinal=10 id=COHERENCE-OUTCOME-02 proof=COHERENCE indicator=OUTCOME stage=DELTA step=bind_retired_cells
+cell ordinal=11 id=COHERENCE-GUARDRAIL-01 proof=COHERENCE indicator=GUARDRAIL stage=DELTA step=bind_split_cells
+cell ordinal=12 id=COHERENCE-GUARDRAIL-02 proof=COHERENCE indicator=GUARDRAIL stage=ROLLBACK step=bind_rollback_delta
+cell ordinal=13 id=REGRESSION-DRIVER-01 proof=REGRESSION indicator=DRIVER stage=CONFORMANCE step=bind_positive_cases
+cell ordinal=14 id=REGRESSION-DRIVER-02 proof=REGRESSION indicator=DRIVER stage=CONFORMANCE step=bind_negative_cases
+cell ordinal=15 id=REGRESSION-OUTCOME-01 proof=REGRESSION indicator=OUTCOME stage=CONFORMANCE step=bind_test_manifest
+cell ordinal=16 id=REGRESSION-OUTCOME-02 proof=REGRESSION indicator=OUTCOME stage=CONFORMANCE step=bind_exact_pair
+cell ordinal=17 id=REGRESSION-GUARDRAIL-01 proof=REGRESSION indicator=GUARDRAIL stage=RECEIPT step=bind_independent_consumer
+cell ordinal=18 id=REGRESSION-GUARDRAIL-02 proof=REGRESSION indicator=GUARDRAIL stage=OUTPUT step=emit_candidate_bundle

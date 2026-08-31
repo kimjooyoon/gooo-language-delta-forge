@@ -1,0 +1,13 @@
+{
+  "schema": "gooo/language-delta-forge/denominator/v1",
+  "id": "language-delta-forge-v1",
+  "version": "v1",
+  "cell_count": 18,
+  "fixed": true,
+  "proof_choices": ["FOUNDATION", "COHERENCE", "REGRESSION"],
+  "indicator_classes": ["DRIVER", "OUTCOME", "GUARDRAIL"],
+  "cells_per_proof_choice": 6,
+  "cells_per_indicator_class": 6,
+  "unknown_fields": ["stage", "step", "reason", "unknown_class", "next_operation", "blocked_by"],
+  "precedence": ["REFUTED", "UNKNOWN", "CLOSED"]
+}

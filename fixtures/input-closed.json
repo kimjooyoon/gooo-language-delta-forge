@@ -1,0 +1,82 @@
+{
+  "schema": "gooo/language-delta-forge/input/v1",
+  "release": {
+    "schema": "gooo/language-delta-forge/immutable-release/v1",
+    "version": "v1",
+    "identity": {
+      "repository": "kimjooyoon/gooo-language-delta-forge-fixture-release",
+      "tag": "v0.1.0",
+      "commit": "1111111111111111111111111111111111111111",
+      "source_digest": "sha256:e06278ea304ae788480babff2a30e4b31acb900ba206406c4ddb705ab8af7769",
+      "graph_digest": "sha256:d9fda89496a7506451c5ed2e56ea9976eade697e96ecff3d93e582515ddbbf84",
+      "digest": "sha256:5dc73b925a87270546e98c686a990a5cd96c01bfdbb26bf06a5f5ba48a496f89"
+    },
+    "graph": {
+      "schema": "gooo/semantic-graph/v1",
+      "version": "v1",
+      "concepts": [{"id":"concept.order","name":"Order"}],
+      "predicates": [
+        {"id":"predicate.order_status","concept_id":"concept.order","name":"has_status","fields":[{"id":"field.order_status","name":"status","type":"string"}]},
+        {"id":"predicate.order_total","concept_id":"concept.order","name":"has_total","fields":[{"id":"field.order_total","name":"amount","type":"integer"}]}
+      ],
+      "edges": [
+        {"id":"edge.order_status","from":"concept.order","to":"predicate.order_status","kind":"binds","predicate_id":"predicate.order_status"},
+        {"id":"edge.order_total","from":"concept.order","to":"predicate.order_total","kind":"binds","predicate_id":"predicate.order_total"}
+      ],
+      "cells": [
+        {"id":"cell.order.status.presence","concept_id":"concept.order","predicate_id":"predicate.order_status","field_id":"field.order_status","relation":"requires","constraint":"nonempty"},
+        {"id":"cell.order.total.presence","concept_id":"concept.order","predicate_id":"predicate.order_total","field_id":"field.order_total","relation":"requires","constraint":"nonnegative"}
+      ],
+      "graph_digest":"sha256:d9fda89496a7506451c5ed2e56ea9976eade697e96ecff3d93e582515ddbbf84"
+    }
+  },
+  "failure": {
+    "schema":"gooo/language-delta-forge/observation-receipt/v1",
+    "id":"failure-order-status-normalization",
+    "state":"FAILURE",
+    "source_digest":"sha256:e06278ea304ae788480babff2a30e4b31acb900ba206406c4ddb705ab8af7769",
+    "graph_digest":"sha256:d9fda89496a7506451c5ed2e56ea9976eade697e96ecff3d93e582515ddbbf84",
+    "target":{"concept_id":"concept.order","predicate_id":"predicate.order_status","field_id":"field.order_status"},
+    "direct_cause": {
+      "target":{"concept_id":"concept.order","predicate_id":"predicate.order_status","field_id":"field.order_status"},
+      "causal_frontier":[{"edge_id":"edge.order_status","from":"concept.order","to":"predicate.order_status","kind":"binds","predicate_id":"predicate.order_status"}],
+      "before_graph_digest":"sha256:d9fda89496a7506451c5ed2e56ea9976eade697e96ecff3d93e582515ddbbf84",
+      "after_graph": {
+        "digest":"sha256:b4e86c6ef93ce7159fa3647e888e7f3de2f76d5e640ffd7bb2e3aec1c3e20ac4",
+        "concepts":[{"id":"concept.order","name":"Order"}],
+        "predicates":[
+          {"id":"predicate.order_status","concept_id":"concept.order","name":"has_status","fields":[{"id":"field.order_status","name":"status","type":"string"}]},
+          {"id":"predicate.order_total","concept_id":"concept.order","name":"has_total","fields":[{"id":"field.order_total","name":"amount","type":"integer"}]}
+        ],
+        "edges":[
+          {"id":"edge.order_status","from":"concept.order","to":"predicate.order_status","kind":"binds","predicate_id":"predicate.order_status"},
+          {"id":"edge.order_total","from":"concept.order","to":"predicate.order_total","kind":"binds","predicate_id":"predicate.order_total"},
+          {"id":"edge.order_status_normalized","from":"predicate.order_status","to":"cell.order.status.normalized","kind":"refines","predicate_id":"predicate.order_status"}
+        ],
+        "cells":[
+          {"id":"cell.order.total.presence","concept_id":"concept.order","predicate_id":"predicate.order_total","field_id":"field.order_total","relation":"requires","constraint":"nonnegative"},
+          {"id":"cell.order.status.normalized","concept_id":"concept.order","predicate_id":"predicate.order_status","field_id":"field.order_status","relation":"requires","constraint":"trimmed"},
+          {"id":"cell.order.status.allowed","concept_id":"concept.order","predicate_id":"predicate.order_status","field_id":"field.order_status","relation":"requires","constraint":"known-status"}
+        ]
+      },
+      "affected_predicate_ids":["predicate.order_status"],
+      "added_cells":[
+        {"id":"cell.order.status.normalized","concept_id":"concept.order","predicate_id":"predicate.order_status","field_id":"field.order_status","relation":"requires","constraint":"trimmed"},
+        {"id":"cell.order.status.allowed","concept_id":"concept.order","predicate_id":"predicate.order_status","field_id":"field.order_status","relation":"requires","constraint":"known-status"}
+      ],
+      "retired_cells":[
+        {"id":"cell.order.status.presence","concept_id":"concept.order","predicate_id":"predicate.order_status","field_id":"field.order_status","relation":"requires","constraint":"nonempty"}
+      ],
+      "split_cells":[{"split_id":"split.order.status.presence","retired_cell_id":"cell.order.status.presence","added_cell_ids":["cell.order.status.normalized","cell.order.status.allowed"]}],
+      "rollback":{"remove_added_cell_ids":["cell.order.status.normalized","cell.order.status.allowed"],"restore_retired_cells":[{"id":"cell.order.status.presence","concept_id":"concept.order","predicate_id":"predicate.order_status","field_id":"field.order_status","relation":"requires","constraint":"nonempty"}],"unsplit":[{"split_id":"split.order.status.presence","retired_cell_id":"cell.order.status.presence","added_cell_ids":["cell.order.status.normalized","cell.order.status.allowed"]}],"exact_pair":true},
+      "positive_cases":[
+        {"id":"positive-order-status-normalized","polarity":"POSITIVE","before_graph_digest":"sha256:d9fda89496a7506451c5ed2e56ea9976eade697e96ecff3d93e582515ddbbf84","after_graph_digest":"sha256:b4e86c6ef93ce7159fa3647e888e7f3de2f76d5e640ffd7bb2e3aec1c3e20ac4","target":{"concept_id":"concept.order","predicate_id":"predicate.order_status","field_id":"field.order_status"},"expected_predicate_state":"CLOSED","fixture_digest":"sha256:1111111111111111111111111111111111111111111111111111111111111111"}
+      ],
+      "negative_cases":[
+        {"id":"negative-order-status-unknown","polarity":"NEGATIVE","before_graph_digest":"sha256:d9fda89496a7506451c5ed2e56ea9976eade697e96ecff3d93e582515ddbbf84","after_graph_digest":"sha256:b4e86c6ef93ce7159fa3647e888e7f3de2f76d5e640ffd7bb2e3aec1c3e20ac4","target":{"concept_id":"concept.order","predicate_id":"predicate.order_status","field_id":"field.order_status"},"expected_predicate_state":"REFUTED","fixture_digest":"sha256:2222222222222222222222222222222222222222222222222222222222222222"}
+      ],
+      "independent_consumer":{"schema":"gooo/language-delta-forge/independent-consumer-receipt/v1","receipt_id":"consumer-order-status","producer_id":"fixture-observer","consumer_id":"independent-conformance-consumer","state":"CLOSED","source_digest":"","baseline_graph_digest":"","delta_digest":""}
+    }
+  },
+  "receipts": []
+}

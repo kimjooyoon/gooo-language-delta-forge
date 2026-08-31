@@ -1,0 +1,176 @@
+name: language-delta-forge
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      PROGRAM: examples/language-delta-forge-v1/main.gooo
+      DENOMINATOR: contracts/denominator-v1.json
+      CONFORMANCE: fixtures/conformance.json
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.27.0
+          check-latest: true
+
+      - name: Prepare artifact directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _artifact/metrics
+          test "$(go env GOVERSION)" = "go1.27.0"
+
+      - name: Inventory repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          go run ./cmd/gooo-language-delta-forge inventory --root . --output _artifact/inventory.json > _artifact/inventory.stdout.json
+          jq -e '.root_readme_excluded == true and .files > 0 and .directories > 0' _artifact/inventory.json >/dev/null
+
+      - name: Compile packages without executing tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          start_ns=$(date +%s%N)
+          set +e
+          /usr/bin/time -v go test -run '^$' ./... > _artifact/compile.log 2> _artifact/metrics/compile.time
+          status=$?
+          set -e
+          end_ns=$(date +%s%N)
+          rss=$(awk -F: '/Maximum resident set size/{gsub(/ /,"",$2);print $2}' _artifact/metrics/compile.time)
+          wall_ms=$(( (end_ns-start_ns)/1000000 ))
+          jq -n --arg status "$status" --argjson wall_ms "$wall_ms" --argjson rss "${rss:-0}" '{status:($status|tonumber),wall_ms:$wall_ms,peak_rss_kib:$rss}' > _artifact/metrics/compile.json
+          test "$status" = "0"
+
+      - name: Build forge binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          start_ns=$(date +%s%N)
+          set +e
+          /usr/bin/time -v go build -trimpath -o "$RUNNER_TEMP/gooo-language-delta-forge" ./cmd/gooo-language-delta-forge > _artifact/build.log 2> _artifact/metrics/build.time
+          status=$?
+          set -e
+          end_ns=$(date +%s%N)
+          rss=$(awk -F: '/Maximum resident set size/{gsub(/ /,"",$2);print $2}' _artifact/metrics/build.time)
+          wall_ms=$(( (end_ns-start_ns)/1000000 ))
+          jq -n --arg status "$status" --argjson wall_ms "$wall_ms" --argjson rss "${rss:-0}" '{status:($status|tonumber),wall_ms:$wall_ms,peak_rss_kib:$rss}' > _artifact/metrics/build.json
+          test "$status" = "0"
+          test -x "$RUNNER_TEMP/gooo-language-delta-forge"
+
+      - name: Run package tests once in CI
+        shell: bash
+        run: |
+          set -euo pipefail
+          start_ns=$(date +%s%N)
+          set +e
+          /usr/bin/time -v go test -count=1 ./... > _artifact/test.log 2> _artifact/metrics/test.time
+          status=$?
+          set -e
+          end_ns=$(date +%s%N)
+          rss=$(awk -F: '/Maximum resident set size/{gsub(/ /,"",$2);print $2}' _artifact/metrics/test.time)
+          wall_ms=$(( (end_ns-start_ns)/1000000 ))
+          jq -n --arg status "$status" --argjson wall_ms "$wall_ms" --argjson rss "${rss:-0}" '{status:($status|tonumber),wall_ms:$wall_ms,peak_rss_kib:$rss,test_execution_count:1,reuse_count:0}' > _artifact/metrics/test.json
+          test "$status" = "0"
+
+      - name: Generate candidate and run conformance
+        shell: bash
+        run: |
+          set -euo pipefail
+          start_ns=$(date +%s%N)
+          set +e
+          /usr/bin/time -v "$RUNNER_TEMP/gooo-language-delta-forge" conformance \
+            --program "$PROGRAM" --denominator "$DENOMINATOR" --manifest "$CONFORMANCE" \
+            --output _artifact/conformance > _artifact/conformance.stdout.json 2> _artifact/metrics/conformance.time
+          status=$?
+          set -e
+          end_ns=$(date +%s%N)
+          rss=$(awk -F: '/Maximum resident set size/{gsub(/ /,"",$2);print $2}' _artifact/metrics/conformance.time)
+          wall_ms=$(( (end_ns-start_ns)/1000000 ))
+          jq -n --arg status "$status" --argjson wall_ms "$wall_ms" --argjson rss "${rss:-0}" '{status:($status|tonumber),wall_ms:$wall_ms,peak_rss_kib:$rss,test_execution_count:0,reuse_count:0}' > _artifact/metrics/conformance.json
+          test "$status" = "0"
+
+      - name: Generate representative candidate bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/gooo-language-delta-forge" generate \
+            --program "$PROGRAM" --denominator "$DENOMINATOR" --input fixtures/input-closed.json \
+            --output _artifact/candidate
+
+      - name: Conform exact states, deltas, precedence, and authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -e '
+            .decision == "CLOSED" and .denominator == 18 and
+            .summary.total == 9 and .summary.closed == 3 and .summary.unknown == 3 and .summary.refuted == 3 and .summary.failures == 0 and
+            ([.cases[] | select(.pass == true)] | length) == 9 and
+            ([.cases[] | select(.proof_choice == "FOUNDATION")] | length) == 3 and
+            ([.cases[] | select(.proof_choice == "COHERENCE")] | length) == 3 and
+            ([.cases[] | select(.proof_choice == "REGRESSION")] | length) == 3 and
+            ([.cases[] | select(.indicator_class == "DRIVER")] | length) == 3 and
+            ([.cases[] | select(.indicator_class == "OUTCOME")] | length) == 3 and
+            ([.cases[] | select(.indicator_class == "GUARDRAIL")] | length) == 3
+          ' _artifact/conformance/conformance-report.json >/dev/null
+          jq -e '
+            .decision == "CLOSED" and .target.resolution_level == "FIELD" and
+            .target.concept_id == "concept.order" and .target.predicate_id == "predicate.order_status" and .target.field_id == "field.order_status" and
+            .counts.added_cells == 2 and .counts.retired_cells == 1 and .counts.split_cells == 1 and
+            .semantic_graph_delta.exact_pair == true and .test_manifest.exact_before_after_pair == true and
+            .improvement.state == "CLOSED" and (.improvement | has("improvement_rate") | not) and
+            .authority.repository_writes == 0 and .authority.protected_core_adoption == 0 and .authority.merge_authority == 0 and
+            .adoption.candidate_only == true and .adoption.protected_core_mutation == false and .adoption.automatic_merge == false and
+            .independent_consumer_receipt.consumer_id != .independent_consumer_receipt.producer_id
+          ' _artifact/candidate/candidate-bundle.json >/dev/null
+          jq -e '.cases | all(.[]; .pass == true)' _artifact/conformance/conformance-report.json >/dev/null
+
+      - name: Record CI measurements and artifact inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=$(find _artifact -type f | wc -l | tr -d ' ')
+          jq -n \
+            --slurpfile inventory _artifact/inventory.json \
+            --slurpfile compile _artifact/metrics/compile.json \
+            --slurpfile build _artifact/metrics/build.json \
+            --slurpfile test _artifact/metrics/test.json \
+            --slurpfile conformance _artifact/metrics/conformance.json \
+            --arg go_version "$(go env GOVERSION)" --argjson output_files "$files" \
+            '{schema:"gooo/language-delta-forge/ci-measurements/v1",go_version:$go_version,
+              inventory:$inventory[0],output_files:$output_files,
+              compile:$compile[0],build:$build[0],test:$test[0],conformance:$conformance[0],
+              test_execution_count:1,reuse_count:0,local_test_executions:0}' > _artifact/ci-measurements.json
+          jq -e '.inventory.root_readme_excluded == true and .compile.status == 0 and .build.status == 0 and .test.status == 0 and .conformance.status == 0 and .test_execution_count == 1 and .reuse_count == 0 and .local_test_executions == 0 and .output_files > 0' _artifact/ci-measurements.json >/dev/null
+
+      - name: Publish verification summary
+        shell: bash
+        run: |
+          {
+            echo '## Gooo Language Delta Forge'
+            echo
+            jq -r '"- denominator: \(.denominator) cells", "- states: \(.summary.closed) CLOSED / \(.summary.unknown) UNKNOWN / \(.summary.refuted) REFUTED", "- failures: \(.summary.failures)"' _artifact/conformance/conformance-report.json
+            jq -r '"- inventory: \(.inventory.files) files / \(.inventory.directories) directories / \(.inventory.physical_lines) lines (root README excluded: \(.inventory.root_readme_excluded))", "- output files: \(.output_files)", "- wall ms: compile \(.compile.wall_ms), build \(.build.wall_ms), test \(.test.wall_ms), conformance \(.conformance.wall_ms)", "- peak RSS KiB: compile \(.compile.peak_rss_kib), build \(.build.peak_rss_kib), test \(.test.peak_rss_kib), conformance \(.conformance.peak_rss_kib)", "- test executions / reuse / local tests: \(.test_execution_count) / \(.reuse_count) / \(.local_test_executions)"' _artifact/ci-measurements.json
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: language-delta-forge-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            _artifact
+            contracts/denominator-v1.json
+            examples/language-delta-forge-v1/main.gooo
+            fixtures/release.json
+            fixtures/conformance.json
