@@ -37,8 +37,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git cat-file -t "refs/tags/$TAG")" = "tag"
-          target_sha=$(git rev-list -n 1 "$TAG^{commit}")
+          ref=$(gh api -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2026-03-10' "repos/$REPOSITORY/git/ref/tags/$TAG")
+          test "$(jq -r '.object.type' <<<"$ref")" = "tag"
+          tag_object_sha=$(jq -r '.object.sha' <<<"$ref")
+          tag_object=$(gh api -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2026-03-10' "repos/$REPOSITORY/git/tags/$tag_object_sha")
+          test "$(jq -r '.object.type' <<<"$tag_object")" = "commit"
+          target_sha=$(jq -r '.object.sha' <<<"$tag_object")
+          test "$target_sha" = "$(git rev-parse HEAD)"
           test -n "$target_sha"
           echo "TARGET_SHA=$target_sha" >> "$GITHUB_ENV"
           mkdir -p _artifact/metrics _release
