@@ -1,0 +1,6 @@
+{
+  "schema":"gooo/language-delta-forge/input/v1",
+  "release_path":"release.json",
+  "failure":{"schema":"gooo/language-delta-forge/observation-receipt/v1","id":"failure-order-status-no-trace","state":"FAILURE","source_digest":"sha256:e06278ea304ae788480babff2a30e4b31acb900ba206406c4ddb705ab8af7769","graph_digest":"sha256:d9fda89496a7506451c5ed2e56ea9976eade697e96ecff3d93e582515ddbbf84","target":{"concept_id":"concept.order"}},
+  "receipts":[{"schema":"gooo/language-delta-forge/observation-receipt/v1","id":"unknown-order-status-no-trace","state":"UNKNOWN","related_to":"failure-order-status-no-trace","source_digest":"sha256:e06278ea304ae788480babff2a30e4b31acb900ba206406c4ddb705ab8af7769","graph_digest":"sha256:d9fda89496a7506451c5ed2e56ea9976eade697e96ecff3d93e582515ddbbf84","stage":"CAUSE","step":"trace_direct_cause","reason":"DIRECT_CAUSE_NOT_OBSERVED","unknown_class":"MISSING_DIRECT_CAUSE","next_operation":"OBTAIN_STRUCTURED_DIRECT_CAUSE","blocked_by":["runtime-trace","failure-order-status-no-trace"]}]
+}

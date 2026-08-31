@@ -1,0 +1,4 @@
+_artifact/
+dist/
+*.test
+gooo-language-delta-forge
