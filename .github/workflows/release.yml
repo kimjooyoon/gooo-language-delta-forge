@@ -1,0 +1,132 @@
+name: durable-language-delta-forge-release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing annotated release tag"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      PROGRAM: examples/language-delta-forge-v1/main.gooo
+      DENOMINATOR: contracts/denominator-v1.json
+      CONFORMANCE: fixtures/conformance.json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.27.0
+          check-latest: true
+
+      - name: Verify tag is annotated and resolve target
+        shell: bash
+        run: |
+          set -euo pipefail
+          settings=$(gh api -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2026-03-10' "repos/$REPOSITORY/immutable-releases")
+          jq -e '.enabled == true' <<<"$settings" >/dev/null
+          test "$(git cat-file -t "refs/tags/$TAG")" = "tag"
+          target_sha=$(git rev-list -n 1 "$TAG^{commit}")
+          test -n "$target_sha"
+          echo "TARGET_SHA=$target_sha" >> "$GITHUB_ENV"
+          mkdir -p _artifact/metrics _release
+
+      - name: Compile, build, test, and run forge conformance
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_timed() {
+            local name=$1
+            shift
+            local start_ns end_ns status rss wall_ms
+            start_ns=$(date +%s%N)
+            set +e
+            /usr/bin/time -v "$@" > "_artifact/$name.log" 2> "_artifact/metrics/$name.time"
+            status=$?
+            set -e
+            end_ns=$(date +%s%N)
+            rss=$(awk -F: '/Maximum resident set size/{gsub(/ /,"",$2);print $2}' "_artifact/metrics/$name.time")
+            wall_ms=$(( (end_ns-start_ns)/1000000 ))
+            jq -n --argjson status "$status" --argjson wall_ms "$wall_ms" --argjson rss "${rss:-0}" \
+              '{status:$status,wall_ms:$wall_ms,peak_rss_kib:$rss}' > "_artifact/metrics/$name.json"
+            test "$status" = "0"
+          }
+          run_timed compile go test -run '^$' ./...
+          run_timed build go build -trimpath -o "$RUNNER_TEMP/gooo-language-delta-forge" ./cmd/gooo-language-delta-forge
+          run_timed test go test -count=1 ./...
+          run_timed conformance "$RUNNER_TEMP/gooo-language-delta-forge" conformance --program "$PROGRAM" --denominator "$DENOMINATOR" --manifest "$CONFORMANCE" --output _artifact/conformance
+          jq -e '.decision == "CLOSED" and .summary.total == 9 and .summary.closed == 3 and .summary.unknown == 3 and .summary.refuted == 3 and .summary.failures == 0' _artifact/conformance/conformance-report.json >/dev/null
+          "$RUNNER_TEMP/gooo-language-delta-forge" inventory --root . --output _artifact/inventory.json > _artifact/inventory.stdout.json
+
+      - name: Package release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git archive --format=tar.gz --prefix="gooo-language-delta-forge-$TAG/" "$TAG" > "_release/gooo-language-delta-forge-$TAG.tar.gz"
+          tar -czf "_release/gooo-language-delta-forge-$TAG-contracts.tar.gz" contracts docs examples fixtures README.md LICENSE go.mod
+          sha256sum "_release/gooo-language-delta-forge-$TAG.tar.gz" "_release/gooo-language-delta-forge-$TAG-contracts.tar.gz" > _release/checksums.txt
+          jq -n --arg tag "$TAG" --arg commit "$TARGET_SHA" \
+            --arg source_name "gooo-language-delta-forge-$TAG.tar.gz" \
+            --arg source_sha "$(sha256sum "_release/gooo-language-delta-forge-$TAG.tar.gz" | awk '{print $1}')" \
+            --arg source_size "$(stat -c '%s' "_release/gooo-language-delta-forge-$TAG.tar.gz")" \
+            --arg contract_name "gooo-language-delta-forge-$TAG-contracts.tar.gz" \
+            --arg contract_sha "$(sha256sum "_release/gooo-language-delta-forge-$TAG-contracts.tar.gz" | awk '{print $1}')" \
+            --arg contract_size "$(stat -c '%s' "_release/gooo-language-delta-forge-$TAG-contracts.tar.gz")" \
+            '{schema:"gooo/language-delta-forge/release-manifest/v2",tag:$tag,commit:$commit,expected_asset_count:4,expected_asset_names:["checksums.txt",$contract_name,$source_name,"release-manifest-"+$tag+".json"],assets:[{name:$source_name,size:($source_size|tonumber),sha256:$source_sha},{name:$contract_name,size:($contract_size|tonumber),sha256:$contract_sha}]}' > "_release/release-manifest-$TAG.json"
+
+      - name: Create draft, upload assets, and publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" --draft --verify-tag --title "Gooo Language Delta Forge $TAG" --notes "Durable release verified by GitHub REST immutable release checks."
+          gh release upload "$TAG" \
+            "_release/gooo-language-delta-forge-$TAG.tar.gz" \
+            "_release/gooo-language-delta-forge-$TAG-contracts.tar.gz" \
+            _release/checksums.txt \
+            "_release/release-manifest-$TAG.json"
+          gh release edit "$TAG" --draft=false
+
+      - name: Verify published immutable release and every asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/verify-immutable-release.sh "$REPOSITORY" "$TAG" "$TARGET_SHA" "_release/release-manifest-$TAG.json" _release > _artifact/release-verification.json
+          jq -e '.immutable == true and .tag_object_sha != "" and .target_sha == env.TARGET_SHA and (.assets | length) == 4' _artifact/release-verification.json >/dev/null
+
+      - name: Record release metrics
+        shell: bash
+        run: |
+          set -euo pipefail
+          output_files=$(find _artifact -type f | wc -l | tr -d ' ')
+          jq -n --arg go_version "$(go env GOVERSION)" --arg tag "$TAG" --arg commit "$TARGET_SHA" \
+            --argjson release_id "$(jq -r '.release_id' _artifact/release-verification.json)" \
+            --argjson output_files "$output_files" \
+            --slurpfile inventory _artifact/inventory.json \
+            --slurpfile compile _artifact/metrics/compile.json \
+            --slurpfile build _artifact/metrics/build.json \
+            --slurpfile test _artifact/metrics/test.json \
+            --slurpfile conformance _artifact/metrics/conformance.json \
+            '{schema:"gooo/language-delta-forge/release-ci-measurements/v2",go_version:$go_version,tag:$tag,target_sha:$commit,release_id:$release_id,inventory:$inventory[0],compile:$compile[0],build:$build[0],test:$test[0],conformance:$conformance[0],test_execution_count:1,reuse_count:0,local_test_executions:0,repository_writes:0,protected_core_mutations:0,output_files:$output_files}' > _artifact/release-ci-measurements.json
+          jq -e '.compile.status == 0 and .build.status == 0 and .test.status == 0 and .conformance.status == 0 and .test_execution_count == 1 and .reuse_count == 0 and .local_test_executions == 0 and .repository_writes == 0 and .protected_core_mutations == 0' _artifact/release-ci-measurements.json >/dev/null
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: durable-language-delta-forge-${{ github.event.inputs.tag || github.ref_name }}
+          if-no-files-found: error
+          path: |
+            _artifact
+            _release
