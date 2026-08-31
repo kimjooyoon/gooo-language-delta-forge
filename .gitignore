@@ -1,4 +1,4 @@
 _artifact/
 dist/
 *.test
-gooo-language-delta-forge
+/gooo-language-delta-forge
