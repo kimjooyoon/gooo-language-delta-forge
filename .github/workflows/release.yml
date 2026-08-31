@@ -3,12 +3,6 @@ name: durable-language-delta-forge-release
 on:
   push:
     tags: ["v*"]
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Existing annotated release tag"
-        required: true
-        type: string
 
 permissions:
   contents: write
@@ -19,7 +13,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
-      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      TAG: ${{ github.ref_name }}
       PROGRAM: examples/language-delta-forge-v1/main.gooo
       DENOMINATOR: contracts/denominator-v1.json
       CONFORMANCE: fixtures/conformance.json
@@ -37,8 +31,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git cat-file -t "refs/tags/$TAG")" = "tag"
-          target_sha=$(git rev-list -n 1 "$TAG^{commit}")
+          prior_runs=$(gh api "repos/$REPOSITORY/actions/workflows/release.yml/runs?event=push&per_page=100")
+          prior_run_count=$(jq --arg tag "$TAG" --arg current "$GITHUB_RUN_ID" '[.workflow_runs[] | select(.head_branch == $tag and ((.id | tostring) != $current))] | length' <<<"$prior_runs")
+          test "$prior_run_count" = "0"
+          ref=$(gh api -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2026-03-10' "repos/$REPOSITORY/git/ref/tags/$TAG")
+          test "$(jq -r '.object.type' <<<"$ref")" = "tag"
+          tag_object_sha=$(jq -r '.object.sha' <<<"$ref")
+          tag_object=$(gh api -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2026-03-10' "repos/$REPOSITORY/git/tags/$tag_object_sha")
+          test "$(jq -r '.object.type' <<<"$tag_object")" = "commit"
+          target_sha=$(jq -r '.object.sha' <<<"$tag_object")
+          test "$target_sha" = "$(git rev-parse HEAD)"
           test -n "$target_sha"
           echo "TARGET_SHA=$target_sha" >> "$GITHUB_ENV"
           mkdir -p _artifact/metrics _release
@@ -123,7 +125,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: durable-language-delta-forge-${{ github.event.inputs.tag || github.ref_name }}
+          name: durable-language-delta-forge-${{ github.ref_name }}
           if-no-files-found: error
           path: |
             _artifact
