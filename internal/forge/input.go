@@ -1,8 +1,10 @@
 package forge
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -13,7 +15,7 @@ func LoadInput(path string) (InputBundle, error) {
 		return InputBundle{}, fmt.Errorf("read input: %w", err)
 	}
 	var input InputBundle
-	if err := json.Unmarshal(raw, &input); err != nil {
+	if err := decodeStrict(raw, &input, "input"); err != nil {
 		return InputBundle{}, fmt.Errorf("decode input: %w", err)
 	}
 	if input.Release.Schema == "" && input.ReleasePath != "" {
@@ -21,7 +23,7 @@ func LoadInput(path string) (InputBundle, error) {
 		if readErr != nil {
 			return InputBundle{}, fmt.Errorf("read immutable release: %w", readErr)
 		}
-		if err := json.Unmarshal(releaseRaw, &input.Release); err != nil {
+		if err := decodeStrict(releaseRaw, &input.Release, "immutable release"); err != nil {
 			return InputBundle{}, fmt.Errorf("decode immutable release: %w", err)
 		}
 	}
@@ -59,6 +61,22 @@ func ValidateInput(input InputBundle) error {
 		if err := validateReceipt(receipt, input.Release, false); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func decodeStrict(raw []byte, destination any, label string) error {
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(destination); err != nil {
+		return fmt.Errorf("parse %s: %w", label, err)
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return fmt.Errorf("parse %s: trailing JSON value", label)
+		}
+		return fmt.Errorf("parse %s: trailing data: %w", label, err)
 	}
 	return nil
 }
