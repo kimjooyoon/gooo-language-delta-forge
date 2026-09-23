@@ -98,11 +98,13 @@ func validateRelease(release ImmutableRelease) error {
 
 func validateGraph(graph SemanticGraph) error {
 	concepts := map[string]bool{}
+	entities := map[string]bool{}
 	for _, concept := range graph.Concepts {
 		if concept.ID == "" || concept.Name == "" || concepts[concept.ID] {
 			return fmt.Errorf("malformed or duplicate concept")
 		}
 		concepts[concept.ID] = true
+		entities[concept.ID] = true
 	}
 	predicates := map[string]Predicate{}
 	fields := map[string]Field{}
@@ -111,16 +113,21 @@ func validateGraph(graph SemanticGraph) error {
 			return fmt.Errorf("malformed predicate %q", predicate.ID)
 		}
 		predicates[predicate.ID] = predicate
+		entities[predicate.ID] = true
 		for _, field := range predicate.Fields {
 			if field.ID == "" || field.Name == "" || field.Type == "" || fields[field.ID].ID != "" {
 				return fmt.Errorf("malformed or duplicate field %q", field.ID)
 			}
 			fields[field.ID] = field
+			entities[field.ID] = true
 		}
+	}
+	for _, cell := range graph.Cells {
+		entities[cell.ID] = true
 	}
 	edges := map[string]bool{}
 	for _, edge := range graph.Edges {
-		if edge.ID == "" || edges[edge.ID] || edge.From == "" || edge.To == "" || edge.Kind == "" || predicates[edge.PredicateID].ID == "" {
+		if edge.ID == "" || edges[edge.ID] || edge.From == "" || edge.To == "" || !entities[edge.From] || !entities[edge.To] || edge.Kind == "" || predicates[edge.PredicateID].ID == "" {
 			return fmt.Errorf("malformed graph edge %q", edge.ID)
 		}
 		edges[edge.ID] = true
