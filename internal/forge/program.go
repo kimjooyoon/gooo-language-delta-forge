@@ -46,6 +46,7 @@ func parseProgram(raw []byte) (Program, error) {
 		Precedence:    []string{"REFUTED", "UNKNOWN", "CLOSED"},
 		UnknownFields: []string{"stage", "step", "reason", "unknown_class", "next_operation", "blocked_by"},
 	}
+	seenHeader := false
 	lines := strings.Split(string(raw), "\n")
 	for _, line := range lines {
 		fields := strings.Fields(strings.TrimSpace(line))
@@ -54,9 +55,13 @@ func parseProgram(raw []byte) (Program, error) {
 		}
 		switch fields[0] {
 		case "gooo":
+			if seenHeader {
+				return Program{}, fmt.Errorf("duplicate program declaration")
+			}
 			if len(fields) != 3 || fields[1] != "language_delta_forge" || fields[2] != "v1" {
 				return Program{}, fmt.Errorf("invalid program declaration")
 			}
+			seenHeader = true
 		case "denominator":
 			values := keyValues(fields[1:])
 			program.Denominator = Denominator{Schema: DenominatorSchema, ID: values["id"]}
@@ -103,6 +108,9 @@ func parseProgram(raw []byte) (Program, error) {
 				IndicatorClass: values["indicator"], Stage: values["stage"], Step: values["step"],
 			})
 		}
+	}
+	if !seenHeader {
+		return Program{}, fmt.Errorf("program declaration is missing")
 	}
 	if program.Denominator.ID == "" || program.Denominator.CellCount == 0 || len(program.Cells) == 0 {
 		return Program{}, fmt.Errorf("program does not declare a denominator and cells")

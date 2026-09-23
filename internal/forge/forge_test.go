@@ -3,8 +3,27 @@ package forge
 import (
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
+
+func TestParseProgramRequiresOneHeader(t *testing.T) {
+	for _, testCase := range []struct {
+		name string
+		raw  string
+		want string
+	}{
+		{name: "missing", raw: "denominator id=language_delta_forge cell_count=18\n", want: "program declaration is missing"},
+		{name: "duplicate", raw: "gooo language_delta_forge v1\ngooo language_delta_forge v1\n", want: "duplicate program declaration"},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			_, err := parseProgram([]byte(testCase.raw))
+			if err == nil || !strings.Contains(err.Error(), testCase.want) {
+				t.Fatalf("parseProgram error=%v want substring %q", err, testCase.want)
+			}
+		})
+	}
+}
 
 func fixtureRoot(t *testing.T) string {
 	t.Helper()
