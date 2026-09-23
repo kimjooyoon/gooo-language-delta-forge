@@ -1,6 +1,8 @@
 package forge
 
 import (
+	"bytes"
+	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -79,5 +81,32 @@ func TestRefutedReceiptTakesPrecedence(t *testing.T) {
 	}
 	if candidate.Decision != StateRefuted || candidate.Claim.State != StateRefuted {
 		t.Fatalf("refutation did not take precedence: %+v", candidate)
+	}
+}
+
+func TestLoadInputRejectsReleasePathOutsideInputDirectory(t *testing.T) {
+	root := fixtureRoot(t)
+	inputRaw, err := os.ReadFile(filepath.Join(root, "fixtures/input-unknown.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	releaseRaw, err := os.ReadFile(filepath.Join(root, "fixtures/release.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	directory := t.TempDir()
+	escapeName := "release-escape.json"
+	escapePath := filepath.Join(filepath.Dir(directory), escapeName)
+	if err := os.WriteFile(escapePath, releaseRaw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(escapePath)
+	inputRaw = bytes.Replace(inputRaw, []byte(`"release_path":"release.json"`), []byte(`"release_path":"../release-escape.json"`), 1)
+	inputPath := filepath.Join(directory, "input.json")
+	if err := os.WriteFile(inputPath, inputRaw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadInput(inputPath); err == nil {
+		t.Fatal("release path outside the input directory was accepted")
 	}
 }

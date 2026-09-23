@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func LoadInput(path string) (InputBundle, error) {
@@ -17,7 +18,11 @@ func LoadInput(path string) (InputBundle, error) {
 		return InputBundle{}, fmt.Errorf("decode input: %w", err)
 	}
 	if input.Release.Schema == "" && input.ReleasePath != "" {
-		releaseRaw, readErr := os.ReadFile(filepath.Join(filepath.Dir(path), input.ReleasePath))
+		releasePath, resolveErr := resolveReleasePath(path, input.ReleasePath)
+		if resolveErr != nil {
+			return InputBundle{}, resolveErr
+		}
+		releaseRaw, readErr := os.ReadFile(releasePath)
 		if readErr != nil {
 			return InputBundle{}, fmt.Errorf("read immutable release: %w", readErr)
 		}
@@ -61,6 +66,26 @@ func ValidateInput(input InputBundle) error {
 		}
 	}
 	return nil
+}
+
+func resolveReleasePath(inputPath, releasePath string) (string, error) {
+	base, err := filepath.EvalSymlinks(filepath.Dir(inputPath))
+	if err != nil {
+		return "", fmt.Errorf("resolve input directory: %w", err)
+	}
+	candidate := filepath.Join(base, releasePath)
+	resolved, err := filepath.EvalSymlinks(candidate)
+	if err != nil {
+		return "", fmt.Errorf("resolve immutable release: %w", err)
+	}
+	relative, err := filepath.Rel(base, resolved)
+	if err != nil {
+		return "", fmt.Errorf("compare immutable release path: %w", err)
+	}
+	if relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
+		return "", fmt.Errorf("immutable release path escapes input directory")
+	}
+	return resolved, nil
 }
 
 func validateRelease(release ImmutableRelease) error {
