@@ -38,3 +38,15 @@ func TestProvenanceChainRejectsMixedBuilderIdentity(t *testing.T) {
 		t.Fatal("expected mixed builder identities to be rejected")
 	}
 }
+
+func TestProvenanceChainRejectsStateDriftBetweenObservationAndDecision(t *testing.T) {
+	candidate := CandidateBundle{Decision: StateClosed, SourceDigest: "source", BaselineGraphDigest: "baseline", CandidateDigest: "candidate"}
+	chain, err := BuildProvenanceChain(candidate, "spiffe://github-actions/gooo-language-delta-forge")
+	if err != nil {
+		t.Fatal(err)
+	}
+	chain.Stages[3].State = string(StateRefuted)
+	if err := ValidateProvenanceChain(chain); err == nil {
+		t.Fatal("expected observation and decision state drift to be rejected")
+	}
+}

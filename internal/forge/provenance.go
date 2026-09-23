@@ -94,6 +94,12 @@ func ValidateProvenanceChain(chain ProvenanceChain) error {
 		return fmt.Errorf("provenance chain requires four stages")
 	}
 	wantNames := []string{"origin", "transformation", "observation", "decision"}
+	if chain.Stages[0].State != "BOUND" || chain.Stages[1].State != "BOUND" {
+		return fmt.Errorf("origin and transformation stages must be BOUND")
+	}
+	if chain.Stages[2].State != chain.Stages[3].State {
+		return fmt.Errorf("observation and decision stages must agree on state")
+	}
 	chainBuilderID := chain.Stages[0].BuilderID
 	for index := range chain.Stages {
 		stage := chain.Stages[index]
