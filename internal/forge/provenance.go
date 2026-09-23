@@ -94,6 +94,7 @@ func ValidateProvenanceChain(chain ProvenanceChain) error {
 		return fmt.Errorf("provenance chain requires four stages")
 	}
 	wantNames := []string{"origin", "transformation", "observation", "decision"}
+	chainBuilderID := chain.Stages[0].BuilderID
 	for index := range chain.Stages {
 		stage := chain.Stages[index]
 		if stage.Name != wantNames[index] || stage.State == "" || stage.BuilderID == "" || stage.ArtifactDigest == "" || stage.Digest == "" {
@@ -101,6 +102,9 @@ func ValidateProvenanceChain(chain ProvenanceChain) error {
 		}
 		if err := validateBuilderID(stage.BuilderID); err != nil {
 			return err
+		}
+		if stage.BuilderID != chainBuilderID {
+			return fmt.Errorf("provenance stages use different builder identities")
 		}
 		if index == 0 {
 			if stage.ParentDigest != "" || stage.InputDigest != "" {

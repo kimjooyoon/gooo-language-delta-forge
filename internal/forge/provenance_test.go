@@ -26,3 +26,15 @@ func TestProvenanceChainRequiresPathBearingSPIFFEBuilder(t *testing.T) {
 		t.Fatal("expected builder identity without a path to be rejected")
 	}
 }
+
+func TestProvenanceChainRejectsMixedBuilderIdentity(t *testing.T) {
+	candidate := CandidateBundle{Decision: StateClosed, SourceDigest: "source", BaselineGraphDigest: "baseline", CandidateDigest: "candidate"}
+	chain, err := BuildProvenanceChain(candidate, "spiffe://github-actions/gooo-language-delta-forge")
+	if err != nil {
+		t.Fatal(err)
+	}
+	chain.Stages[3].BuilderID = "spiffe://other-builder/gooo-language-delta-forge"
+	if err := ValidateProvenanceChain(chain); err == nil {
+		t.Fatal("expected mixed builder identities to be rejected")
+	}
+}
