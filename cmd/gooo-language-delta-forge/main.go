@@ -41,6 +41,7 @@ func generate(args []string) error {
 	denominatorPath := flags.String("denominator", "", "path to the fixed denominator")
 	inputPath := flags.String("input", "", "path to an immutable release and receipt input bundle")
 	outputDir := flags.String("output", "", "empty caller-owned output directory")
+	builderID := flags.String("builder-id", "spiffe://github-actions/gooo-language-delta-forge", "declared builder identity label")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -63,6 +64,13 @@ func generate(args []string) error {
 		return err
 	}
 	if err := forge.WriteJSONFile(filepath.Join(*outputDir, "candidate-bundle.json"), candidate); err != nil {
+		return err
+	}
+	provenance, err := forge.BuildProvenanceChain(candidate, *builderID)
+	if err != nil {
+		return err
+	}
+	if err := forge.WriteJSONFile(filepath.Join(*outputDir, "provenance-chain.json"), provenance); err != nil {
 		return err
 	}
 	return printJSON(map[string]any{"decision": candidate.Decision, "candidate_digest": candidate.CandidateDigest})

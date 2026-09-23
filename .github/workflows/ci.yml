@@ -107,7 +107,8 @@ jobs:
           set -euo pipefail
           "$RUNNER_TEMP/gooo-language-delta-forge" generate \
             --program "$PROGRAM" --denominator "$DENOMINATOR" --input fixtures/input-closed.json \
-            --output _artifact/candidate
+            --output _artifact/candidate \
+            --builder-id "spiffe://github-actions/github.com/kimjooyoon/gooo-language-delta-forge"
 
       - name: Conform exact states, deltas, precedence, and authority
         shell: bash
@@ -135,6 +136,18 @@ jobs:
             .independent_consumer_receipt.consumer_id != .independent_consumer_receipt.producer_id
           ' _artifact/candidate/candidate-bundle.json >/dev/null
           jq -e '.cases | all(.[]; .pass == true)' _artifact/conformance/conformance-report.json >/dev/null
+          jq -e --slurpfile candidate _artifact/candidate/candidate-bundle.json '
+            .schema == "gooo/language-delta-forge/provenance-chain/v1" and
+            .version == "v1" and .subject_digest == $candidate[0].candidate_digest and
+            (.stages | length) == 4 and .stages[0].name == "origin" and
+            .stages[1].name == "transformation" and .stages[2].name == "observation" and
+            .stages[3].name == "decision" and .root_digest == .stages[0].digest and
+            .tip_digest == .stages[3].digest and .digest != "" and
+            (.stages | all(.[]; .builder_id == "spiffe://github-actions/github.com/kimjooyoon/gooo-language-delta-forge")) and
+            .stages[1].parent_digest == .stages[0].digest and
+            .stages[2].parent_digest == .stages[1].digest and
+            .stages[3].parent_digest == .stages[2].digest
+          ' _artifact/candidate/provenance-chain.json >/dev/null
 
       - name: Record CI measurements and artifact inventory
         shell: bash
