@@ -81,3 +81,15 @@ func TestRefutedReceiptTakesPrecedence(t *testing.T) {
 		t.Fatalf("refutation did not take precedence: %+v", candidate)
 	}
 }
+
+func TestKeyValuesRejectsInvalidAndDuplicateKeys(t *testing.T) {
+	for _, fields := range [][]string{
+		{"id="},
+		{"=value"},
+		{"id=first", "id=second"},
+	} {
+		if _, err := keyValues(fields); err == nil {
+			t.Fatalf("keyValues(%v) accepted invalid input", fields)
+		}
+	}
+}

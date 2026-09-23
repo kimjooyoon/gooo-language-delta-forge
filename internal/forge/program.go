@@ -58,14 +58,20 @@ func parseProgram(raw []byte) (Program, error) {
 				return Program{}, fmt.Errorf("invalid program declaration")
 			}
 		case "denominator":
-			values := keyValues(fields[1:])
+			values, parseErr := keyValues(fields[1:])
+			if parseErr != nil {
+				return Program{}, parseErr
+			}
 			program.Denominator = Denominator{Schema: DenominatorSchema, ID: values["id"]}
 			program.Denominator.CellCount, err = strconv.Atoi(values["cell_count"])
 			if err != nil {
 				return Program{}, fmt.Errorf("invalid denominator cell_count")
 			}
 		case "authority":
-			values := keyValues(fields[1:])
+			values, parseErr := keyValues(fields[1:])
+			if parseErr != nil {
+				return Program{}, parseErr
+			}
 			program.Authority.RepositoryWrites, err = parseInt(values, "repository_writes")
 			if err != nil {
 				return Program{}, err
@@ -93,7 +99,10 @@ func parseProgram(raw []byte) (Program, error) {
 			}
 			program.UnknownFields = strings.Split(fields[1], ",")
 		case "cell":
-			values := keyValues(fields[1:])
+			values, parseErr := keyValues(fields[1:])
+			if parseErr != nil {
+				return Program{}, parseErr
+			}
 			ordinal, parseErr := strconv.Atoi(values["ordinal"])
 			if parseErr != nil {
 				return Program{}, fmt.Errorf("invalid cell ordinal: %w", parseErr)
@@ -114,15 +123,19 @@ func parseProgram(raw []byte) (Program, error) {
 	return program, nil
 }
 
-func keyValues(fields []string) map[string]string {
+func keyValues(fields []string) (map[string]string, error) {
 	values := make(map[string]string, len(fields))
 	for _, field := range fields {
 		parts := strings.SplitN(field, "=", 2)
-		if len(parts) == 2 {
-			values[parts[0]] = parts[1]
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+			return nil, fmt.Errorf("invalid key/value %q", field)
 		}
+		if _, exists := values[parts[0]]; exists {
+			return nil, fmt.Errorf("duplicate key %q", parts[0])
+		}
+		values[parts[0]] = parts[1]
 	}
-	return values
+	return values, nil
 }
 
 func parseInt(values map[string]string, key string) (int, error) {
