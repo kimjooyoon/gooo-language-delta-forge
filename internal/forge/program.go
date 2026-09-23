@@ -133,7 +133,7 @@ func parseInt(values map[string]string, key string) (int, error) {
 }
 
 func ValidateDenominator(denominator Denominator) error {
-	if denominator.Schema != DenominatorSchema || denominator.ID == "" || denominator.CellCount != 18 || !denominator.Fixed {
+	if denominator.Schema != DenominatorSchema || denominator.Version != "v1" || denominator.ID == "" || denominator.CellCount != 18 || !denominator.Fixed {
 		return fmt.Errorf("denominator is not fixed at 18 cells")
 	}
 	if !equalStrings(denominator.ProofChoices, []string{ProofFoundation, ProofCoherence, ProofRegression}) ||
