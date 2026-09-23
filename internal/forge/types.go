@@ -206,6 +206,7 @@ type Authority struct {
 
 type Denominator struct {
 	Schema                 string   `json:"schema"`
+	Version                string   `json:"version"`
 	ID                     string   `json:"id"`
 	CellCount              int      `json:"cell_count"`
 	Fixed                  bool     `json:"fixed"`
