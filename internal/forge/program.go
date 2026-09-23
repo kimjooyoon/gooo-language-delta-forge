@@ -1,7 +1,6 @@
 package forge
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -24,8 +23,8 @@ func LoadProgram(programPath, denominatorPath string) (Program, error) {
 		return Program{}, fmt.Errorf("read denominator: %w", err)
 	}
 	var denominator Denominator
-	if err := json.Unmarshal(denominatorRaw, &denominator); err != nil {
-		return Program{}, fmt.Errorf("decode denominator: %w", err)
+	if err := decodeStrictJSON(denominatorRaw, &denominator, "denominator"); err != nil {
+		return Program{}, err
 	}
 	if err := ValidateDenominator(denominator); err != nil {
 		return Program{}, err

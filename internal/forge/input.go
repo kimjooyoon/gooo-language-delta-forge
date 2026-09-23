@@ -1,8 +1,11 @@
 package forge
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -13,22 +16,38 @@ func LoadInput(path string) (InputBundle, error) {
 		return InputBundle{}, fmt.Errorf("read input: %w", err)
 	}
 	var input InputBundle
-	if err := json.Unmarshal(raw, &input); err != nil {
-		return InputBundle{}, fmt.Errorf("decode input: %w", err)
+	if err := decodeStrictJSON(raw, &input, "input"); err != nil {
+		return InputBundle{}, err
 	}
 	if input.Release.Schema == "" && input.ReleasePath != "" {
 		releaseRaw, readErr := os.ReadFile(filepath.Join(filepath.Dir(path), input.ReleasePath))
 		if readErr != nil {
 			return InputBundle{}, fmt.Errorf("read immutable release: %w", readErr)
 		}
-		if err := json.Unmarshal(releaseRaw, &input.Release); err != nil {
-			return InputBundle{}, fmt.Errorf("decode immutable release: %w", err)
+		if err := decodeStrictJSON(releaseRaw, &input.Release, "immutable release"); err != nil {
+			return InputBundle{}, err
 		}
 	}
 	if err := ValidateInput(input); err != nil {
 		return InputBundle{}, err
 	}
 	return input, nil
+}
+
+func decodeStrictJSON(raw []byte, destination any, label string) error {
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(destination); err != nil {
+		return fmt.Errorf("decode %s: %w", label, err)
+	}
+	var extra any
+	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+		if err == nil {
+			return fmt.Errorf("decode %s: trailing JSON value", label)
+		}
+		return fmt.Errorf("decode %s: trailing data: %w", label, err)
+	}
+	return nil
 }
 
 func ValidateInput(input InputBundle) error {
